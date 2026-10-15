@@ -19,5 +19,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run a simple syntax check
-        run: python -m py_compile app.py
+      - name: Run syntax check
+        run: python -m py_compile app.py_compile
+
+      - name: Run SAST security scan (Bandit)
+        run:  |
+          pip install bandit
+          bandit -r . -ll
