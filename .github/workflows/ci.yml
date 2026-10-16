@@ -1,4 +1,4 @@
-name: Python CI & SAST
+name: Python CI & DevSecOps
 
 on: [push, pull_request]
 
@@ -26,3 +26,10 @@ jobs:
         run: |
           pip install bandit
           python -m bandit -r . -ll
+
+      - name: Run Dependency Scan (Snyk)
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
