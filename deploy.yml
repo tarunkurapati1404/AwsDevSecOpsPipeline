@@ -1,5 +1,5 @@
 ---
-- name: Deploy Flask App
+- name: Deploy Flask App & Monitoring
   hosts: webservers
   become: yes
   tasks:
@@ -23,7 +23,7 @@
 
     - name: Copy app files to server
       copy:
-        src: ../{{ item }}
+        src: "{{ item }}"
         dest: /home/ubuntu/flask-app/{{ item }}
         owner: ubuntu
         group: ubuntu
@@ -36,7 +36,7 @@
         requirements: /home/ubuntu/flask-app/requirements.txt
         executable: pip3
 
-    - name: Create systemd service file
+    - name: Create systemd service file for Flask
       copy:
         dest: /etc/systemd/system/flask-app.service
         content: |
@@ -62,3 +62,55 @@
         name: flask-app
         state: started
         enabled: yes
+
+    - name: Create prometheus user for Node Exporter
+      user:
+        name: prometheus
+        system: yes
+        shell: /usr/sbin/nologin
+        create_home: no
+
+    - name: Download Node Exporter
+      get_url:
+        url: https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+        dest: /tmp/node_exporter.tar.gz
+
+    - name: Extract Node Exporter
+      unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Copy Node Exporter binary
+      copy:
+        src: /tmp/node_exporter-1.7.0.linux-amd64/node_exporter
+        dest: /usr/local/bin/node_exporter
+        remote_src: yes
+        mode: '0755'
+        owner: prometheus
+        group: prometheus
+
+    - name: Create Node Exporter systemd service
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=notify
+          ExecStart=/usr/local/bin/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd and start Node Exporter
+      systemd:
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+        name: node_exporter
